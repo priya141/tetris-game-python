@@ -1,0 +1,42 @@
+# azure-pipelines.yml
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+jobs:
+- job: Build
+  displayName: 'Build Tetris Game'
+  steps:
+  - checkout: self
+  - script: |
+      echo "This is where you'd install any dependencies, run tests, etc."
+      # For a Python project, you might create a virtual environment, install dependencies, and run tests.
+  - task: ArchiveFiles@2
+    displayName: 'Archive Game Code'
+    inputs:
+      rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+      includeRootFolder: false
+      archiveFile: '$(Build.ArtifactStagingDirectory)/TetrisGame.zip'
+
+- job: Deploy
+  displayName: 'Deploy Tetris Game'
+  dependsOn: Build
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - task: DownloadPipelineArtifact@2
+    displayName: 'Download Game Code'
+    inputs:
+      artifactName: 'drop'
+      path: '$(System.DefaultWorkingDirectory)'
+
+  - script: |
+      # Extract the game code
+      unzip $(System.DefaultWorkingDirectory)/TetrisGame.zip -d $(System.DefaultWorkingDirectory)/TetrisGame
+
+      # Assuming you have a script to deploy the game (copy files to a server, start the server, etc.)
+      cd $(System.DefaultWorkingDirectory)/TetrisGame
+      ./deploy_script.sh
+    displayName: 'Deploy Game'
