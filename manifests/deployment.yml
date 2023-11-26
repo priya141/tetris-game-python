@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: tetrisimage 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tetrisimage
+  template:
+    metadata:
+      labels:
+        app: tetrisimage 
+    spec:
+      containers:
+        - name: tetrisimage 
+          image: smarttechcr24.azurecr.io/tetrisimage
+          ports:
+          - containerPort: 80
