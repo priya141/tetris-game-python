@@ -1,4 +1,5 @@
-# azure-pipelines.yml
+# Azure Pipelines YAML file
+
 trigger:
 - main
 
@@ -7,36 +8,46 @@ pool:
 
 jobs:
 - job: Build
-  displayName: 'Build Tetris Game'
+  displayName: 'Build Docker Image'
   steps:
   - checkout: self
-  - script: |
-      echo "This is where you'd install any dependencies, run tests, etc."
-      # For a Python project, you might create a virtual environment, install dependencies, and run tests.
-  - task: ArchiveFiles@2
-    displayName: 'Archive Game Code'
-    inputs:
-      rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
-      includeRootFolder: false
-      archiveFile: '$(Build.ArtifactStagingDirectory)/TetrisGame.zip'
 
-- job: Deploy
-  displayName: 'Deploy Tetris Game'
+  # Add your Docker build steps here...
+
+  - task: Docker@2
+    inputs:
+      containerRegistry: 'yourContainerRegistryServiceConnection'
+      repository: 'your-image-name'
+      command: 'build'
+      Dockerfile: '**/Dockerfile'
+
+  - task: Docker@2
+    inputs:
+      containerRegistry: 'yourContainerRegistryServiceConnection'
+      repository: 'your-image-name'
+      command: 'push'
+
+- job: DownloadArtifact
+  displayName: 'Download Artifact'
   dependsOn: Build
-  pool:
-    vmImage: 'ubuntu-latest'
   steps:
   - task: DownloadPipelineArtifact@2
-    displayName: 'Download Game Code'
     inputs:
+      buildType: 'current'
       artifactName: 'drop'
-      path: '$(System.DefaultWorkingDirectory)'
+      downloadPath: '/home/vsts/work/1/s' # Specify the target directory
+
+- job: Deploy
+  displayName: 'Deploy to AKS'
+  dependsOn: DownloadArtifact
+  variables:
+    KUBE_CONFIG_MAP_NAME: 'your-aks-cluster-config-map'
+  steps:
+  - script: |
+      echo "##vso[task.setvariable variable=KUBE_CONFIG_DATA]$(az aks get-credentials --resource-group your-resource-group --name your-aks-cluster --overwrite-existing --output json)"
+      kubectl apply -f <(echo $KUBE_CONFIG_DATA | base64 --decode)
+    displayName: 'Get AKS Cluster Credentials'
 
   - script: |
-      # Extract the game code
-      unzip $(System.DefaultWorkingDirectory)/TetrisGame.zip -d $(System.DefaultWorkingDirectory)/TetrisGame
-
-      # Assuming you have a script to deploy the game (copy files to a server, start the server, etc.)
-      cd $(System.DefaultWorkingDirectory)/TetrisGame
-      ./deploy_script.sh
-    displayName: 'Deploy Game'
+      kubectl set image deployment/your-deployment-name your-container-name=yourContainerRegistry.azurecr.io/your-image-name:$(Build.BuildId)
+    displayName: 'Update Deployment with New Image'
